@@ -1,0 +1,36 @@
+version: '3.9'
+
+x-service-logging: &service-logging
+  logging:
+    driver: json-file
+    options:
+      max-file: '16'
+      max-size: 16m
+
+services:
+  nginx:
+    <<: *service-logging
+    image: nginx:latest
+    labels:
+      com.dnsdock.alias: tcp.docker
+    volumes:
+      - ./services/nginx/conf.d:/etc/nginx/templates
+      - ./static:/static
+    depends_on:
+      - php
+    environment:
+      DOMAIN: ${DOMAIN}
+
+  php:
+    <<: *service-logging
+    build:
+      context: services/php
+      target: dev
+    volumes:
+      - ./app:/app
+      - ./app/docker/www.conf:/usr/local/etc/php-fpm.d/www.conf
+    entrypoint:
+      - /app/docker/docker-entry.sh
+    environment:
+      USER_ID: ${USER_ID}
+      GROUP_ID: ${GROUP_ID}

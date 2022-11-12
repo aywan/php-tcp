@@ -1,0 +1,48 @@
+client_max_body_size 256m;
+server_names_hash_bucket_size 128;
+
+access_log /dev/stdout;
+error_log stderr;
+
+# Connection header for websockets
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# Return 400 for wrong domains
+server {
+    listen 80 default_server;
+
+    access_log /dev/stdout;
+
+    location / {
+        add_header Content-Type text/plain;
+        return 200 'BAD DOMAIN';
+    }
+}
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    access_log /dev/stdout;
+
+    root /static;
+
+    location / {
+        try_files $uri @backend;
+        rewrite ^/(.*)/$ /$1 permanent;
+    }
+
+    location @backend {
+        fastcgi_pass php:9000;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME /app/web/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_param q $REQUEST_URI;
+        fastcgi_param HTTPS $HTTP_HTTPS;
+        fastcgi_param REQUEST_ID $http_request_id;
+    }
+}
+
